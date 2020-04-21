@@ -1,27 +1,26 @@
 import json
 import time
 import random
-from typing import List
+from typing import Callable, List
 
 from cached_property import cached_property
 from kafka import KafkaAdminClient, KafkaProducer
 from kafka.admin import NewTopic
 from kafka.errors import TopicAlreadyExistsError
 
-from utils import get_logger, serialize_record
+from utils import get_logger, JsonSerializer
 
 logger = get_logger(__file__)
 
 
 class ProducerServer:
-
-    _default_value_serializer = serialize_record
-
     def __init__(
         self,
         bootstrap_servers: str,
         input_file: str,
         topic_name: str,
+        key_serializer: Callable = str.encode,
+        value_serializer: Callable = JsonSerializer().serialize,
         num_partitions: int = 3,
         replication_factor: int = 1,
         **conf,
@@ -31,12 +30,12 @@ class ProducerServer:
         self.topic_name = topic_name
         self.num_partitions = num_partitions
         self.replication_factor = replication_factor
+        self._key_serializer = key_serializer
+        self._value_serializer = value_serializer
         self.conf: dict = conf
-
-        value_serializer = conf.pop(
-            "value_serializer", ProducerServer._default_value_serializer
+        self.producer = KafkaProducer(
+            key_serializer=key_serializer, value_serializer=value_serializer, **conf
         )
-        self.producer = KafkaProducer(value_serializer=value_serializer, **conf)
 
     @cached_property
     def client(self) -> KafkaAdminClient:
@@ -71,7 +70,9 @@ class ProducerServer:
         """Iterate the JSON data and send it to the Kafka Topic"""
         data = self.read_data()
         for record in data:
-            future = self.producer.send(topic=self.topic_name, value=record)
+            future = self.producer.send(
+                topic=self.topic_name, key=record.get("crime_id"), value=record
+            )
             future.add_callback(self.on_success).add_errback(self.on_err)
             time.sleep(random.random())
 
@@ -87,7 +88,7 @@ class ProducerServer:
 
     def on_success(self, record_metadata):
         logger.info(
-            f"Message sent to: {record_metadata.topic}[{record_metadata.partition}] | offset={record_metadata.offset}"
+            f"Message sent to: {record_metadata.topic}[{record_metadata.partition}]:{record_metadata.offset}"
         )
 
     def on_err(self, exc):
