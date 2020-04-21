@@ -5,9 +5,10 @@ name = "pypi"
 
 [packages]
 findspark = "*"
-pyspark = "*"
+pyspark = "~= 2.4"
 python-dateutil = "*"
-pathlib = "*"
+kafka-python = "*"
+cached-property = "*"
 
 [dev-packages]
 flake8-mypy = "*"
@@ -19,3 +20,6 @@ python_version = "3.7"
 
 [pipenv]
 allow_prereleases = true
+
+[dev-packages.isort]
+extras = [ "pipfile",]
