@@ -10,7 +10,7 @@ INPUT_FILE = Path(__file__).parent / "data" / "police-department-calls-for-servi
 logger = get_logger(__file__)
 
 
-def run_kafka_server(input_file: str, config: ConfigParser):
+def run_kafka_producer(input_file: str, config: ConfigParser):
 
     producer = ProducerServer(
         input_file=input_file,
@@ -26,7 +26,7 @@ def run_kafka_server(input_file: str, config: ConfigParser):
 
 def simulate_data(input_file: str):
     config = load_config()
-    producer = run_kafka_server(input_file, config)
+    producer = run_kafka_producer(input_file, config)
 
     logger.info("Creating topic...")
     producer.create_topic()
