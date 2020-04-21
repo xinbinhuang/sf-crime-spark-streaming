@@ -70,9 +70,10 @@ class ProducerServer:
         """Iterate the JSON data and send it to the Kafka Topic"""
         data = self.read_data()
         for record in data:
-            future = self.producer.send(
-                topic=self.topic_name, key=record.get("crime_id"), value=record
-            )
+            key = record.get("crime_id")
+
+            logger.debug(f"Message| key={key} | value={record}")
+            future = self.producer.send(topic=self.topic_name, key=key, value=record)
             future.add_callback(self.on_success).add_errback(self.on_err)
             time.sleep(random.random())
 
@@ -87,8 +88,8 @@ class ProducerServer:
         self.producer.close(timeout=10)
 
     def on_success(self, record_metadata):
-        logger.info(
-            f"Message sent to: {record_metadata.topic}[{record_metadata.partition}]:{record_metadata.offset}"
+        logger.debug(
+            f"Successful delivery - {record_metadata.topic}[{record_metadata.partition}]:{record_metadata.offset}"
         )
 
     def on_err(self, exc):

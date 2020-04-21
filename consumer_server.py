@@ -30,7 +30,7 @@ def consume_data():
     try:
         for message in consumer:
             logger.info(
-                f"{message.topic}:{message.partition}:{message.offset} | key={message.key} value={message.value}"
+                f"{message.topic}:{message.partition}:{message.offset} | key={message.key} | value={message.value}"
             )
     except KeyboardInterrupt:
         logger.info("Stop consuming...")
