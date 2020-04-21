@@ -1,25 +1,94 @@
-from kafka import KafkaProducer
 import json
 import time
+import random
+from typing import List
+
+from cached_property import cached_property
+from kafka import KafkaAdminClient, KafkaProducer
+from kafka.admin import NewTopic
+from kafka.errors import TopicAlreadyExistsError
+
+from utils import get_logger, serialize_record
+
+logger = get_logger(__file__)
 
 
-class ProducerServer(KafkaProducer):
+class ProducerServer:
 
-    def __init__(self, input_file, topic, **kwargs):
-        super().__init__(**kwargs)
+    _default_value_serializer = serialize_record
+
+    def __init__(
+        self,
+        bootstrap_servers: str,
+        input_file: str,
+        topic_name: str,
+        num_partitions: int = 3,
+        replication_factor: int = 1,
+        **conf,
+    ):
+        self.bootstrap_servers = bootstrap_servers
         self.input_file = input_file
-        self.topic = topic
+        self.topic_name = topic_name
+        self.num_partitions = num_partitions
+        self.replication_factor = replication_factor
+        self.conf: dict = conf
 
-    #TODO we're generating a dummy data
+        value_serializer = conf.pop(
+            "value_serializer", ProducerServer._default_value_serializer
+        )
+        self.producer = KafkaProducer(value_serializer=value_serializer, **conf)
+
+    @cached_property
+    def client(self) -> KafkaAdminClient:
+        """KafkaAdminClinet to manage topics and other cluster metadata"""
+        bootstrap_servers: List[str] = self.bootstrap_servers.split(",")
+        admin_client = KafkaAdminClient(
+            bootstrap_servers=bootstrap_servers, client_id=self.conf.get("client_id")
+        )
+        return admin_client
+
+    def create_topic(self):
+        """Create Kafka topic on the brokers"""
+        new_topic = NewTopic(
+            name=self.topic_name,
+            num_partitions=self.num_partitions,
+            replication_factor=self.replication_factor,
+        )
+
+        try:
+            resp = self.client.create_topics([new_topic], timeout_ms=10000)
+        except TopicAlreadyExistsError:
+            logger.info(f"Topic already exists: {new_topic.name}")
+        else:
+            for topic_name, err_code, err_msg in resp.topic_errors:
+                if err_code != 0:
+                    raise f"Error Code [{err_code}] when creating {topic_name}: {err_msg}"
+            logger.info(f"Topic created: {topic_name}")
+        finally:
+            self.client.close()
+
     def generate_data(self):
-        with open(self.input_file) as f:
-            for line in f:
-                message = self.dict_to_binary(line)
-                # TODO send the correct data
-                self.send()
-                time.sleep(1)
+        """Iterate the JSON data and send it to the Kafka Topic"""
+        data = self.read_data()
+        for record in data:
+            future = self.producer.send(topic=self.topic_name, value=record)
+            future.add_callback(self.on_success).add_errback(self.on_err)
+            time.sleep(random.random())
 
-    # TODO fill this in to return the json dictionary to binary
-    def dict_to_binary(self, json_dict):
-        return 
-        
+    def read_data(self) -> dict:
+        """Load in a JSON data file"""
+        with open(self.input_file) as json_file:
+            return json.load(json_file)
+
+    def close(self):
+        """Flush out all buffered messages and close down the producer gracefully"""
+        self.producer.flush(timeout=10)
+        self.producer.close(timeout=10)
+
+    def on_success(self, record_metadata):
+        logger.info(
+            f"Message sent to: {record_metadata.topic}[{record_metadata.partition}] | offset={record_metadata.offset}"
+        )
+
+    def on_err(self, exc):
+        logger.error(exc)
