@@ -27,7 +27,7 @@ This project simulate the production, consumption and anlysis of SF crime statis
 
 ## Usage
 
-1. Dependencies
+1. Install dependencies
 
    Here I use `pipenv` to manage dependencies.
 
@@ -40,25 +40,35 @@ This project simulate the production, consumption and anlysis of SF crime statis
     pipenv shell
     ```
 
-2. Bring up the Kafka Cluster
+2. Unpack the data used for simulation into the current directory
+
+    ```bash
+    # if you have Make
+    make unzip_data
+
+    # which is equivalent to
+    tar -zxvf data.tar.gz
+    ```
+
+3. Bring up the Kafka Cluster
 
     ```bash
     docker-compose up
     ```
 
-3. Start consuming data
+4. Start consuming data
 
    ```bash
    python kafka_server.py
    ```
 
-4. Start Spark Streaming
+5. Start Spark Streaming
 
     ```bash
     spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.4.5 spark_streaming.py
     ```
 
-5. (Optional) Start consuming data with Kafka Consumer
+6. (Optional) Start consuming data with Kafka Consumer
 
     ```bash
     python consumer_server.py
