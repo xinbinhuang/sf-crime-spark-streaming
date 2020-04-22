@@ -28,6 +28,7 @@ def consume_data():
     config = load_config()
     consumer = run_kafka_consumer(config)
     try:
+        logger.info("Start consuming data...")
         for message in consumer:
             logger.info(
                 f"{message.topic}:{message.partition}:{message.offset} | key={message.key} | value={message.value}"
