@@ -1,16 +1,15 @@
-from typing import List
 from configparser import ConfigParser
+from typing import List
 
 from kafka import KafkaConsumer
 
-from utils import load_config, get_logger
-from utils import JsonSerializer
-
+from utils import JsonSerializer, get_logger, load_config
 
 logger = get_logger(__file__)
 
 
-def run_kafka_consumer(config: ConfigParser):
+def run_kafka_consumer(config: ConfigParser) -> KafkaConsumer:
+    """Initialize a Kafka consumer"""
     bootstrap_servers: List[str] = config["kafka"].get("bootstrap_servers").split(",")
 
     consumer = KafkaConsumer(
@@ -25,6 +24,7 @@ def run_kafka_consumer(config: ConfigParser):
 
 
 def consume_data():
+    """Start consuming data from Kafka"""
     config = load_config()
     consumer = run_kafka_consumer(config)
     try:

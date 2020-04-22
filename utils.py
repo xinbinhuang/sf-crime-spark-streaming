@@ -1,7 +1,7 @@
-from configparser import ConfigParser
 import json
 import logging
 import logging.config
+from configparser import ConfigParser
 from pathlib import Path
 
 logging.config.fileConfig(Path(__file__).parents[0] / "logging.ini")  # noqa

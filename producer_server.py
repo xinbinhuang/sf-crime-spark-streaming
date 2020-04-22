@@ -1,6 +1,6 @@
 import json
-import time
 import random
+import time
 from typing import Callable, List
 
 from cached_property import cached_property
@@ -8,12 +8,25 @@ from kafka import KafkaAdminClient, KafkaProducer
 from kafka.admin import NewTopic
 from kafka.errors import TopicAlreadyExistsError
 
-from utils import get_logger, JsonSerializer
+from utils import JsonSerializer, get_logger
 
 logger = get_logger(__file__)
 
 
 class ProducerServer:
+    """A Kafka Producer used to simulate SF Crime data
+
+    Attributes:
+        bootstrap_servers (str): comma-separated Kafka brokers, e.g. localhost:9092,localhost:9093
+        input_file (str): path to the data file for simulation
+        topic_name (str): Kafka topic name
+        key_serializer (Callable): function used to serialize the message key into bytes
+        value_serializer (Callable): function used to serialize the message value into bytes
+        num_partitions (int): number of partitions for the topic
+        replication_factor (int): number of replications for the topic
+        **conf: other key word arguments passed to kafka.KafkaProducer
+    """
+
     def __init__(
         self,
         bootstrap_servers: str,
@@ -74,7 +87,7 @@ class ProducerServer:
 
             logger.debug(f"Message| key={key} | value={record}")
             future = self.producer.send(topic=self.topic_name, key=key, value=record)
-            future.add_callback(self.on_success).add_errback(self.on_err)
+            future.add_callback(self._on_success).add_errback(self._on_err)
             time.sleep(random.random())
 
     def read_data(self) -> dict:
@@ -87,10 +100,12 @@ class ProducerServer:
         self.producer.flush(timeout=10)
         self.producer.close(timeout=10)
 
-    def on_success(self, record_metadata):
+    def _on_success(self, record_metadata):
+        """Message on sucess callback"""
         logger.debug(
             f"Successful delivery - {record_metadata.topic}[{record_metadata.partition}]:{record_metadata.offset}"
         )
 
-    def on_err(self, exc):
+    def _on_err(self, exc):
+        """Message on error callback"""
         logger.error(exc)
