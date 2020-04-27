@@ -56,7 +56,7 @@ This project simulate the production, consumption and anlysis of SF crime statis
     docker-compose up
     ```
 
-4. Start consuming data
+4. Start simulating data by Kafka producer
 
    ```bash
    python kafka_server.py
